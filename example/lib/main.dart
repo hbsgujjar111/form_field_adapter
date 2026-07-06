@@ -172,10 +172,12 @@ class _FormDemoPageState extends State<FormDemoPage> {
                   initialValue: _rating,
                   focusNode: _ratingFocusNode,
                   validator: (value) {
-                    if (value == null || value == 0)
+                    if (value == null || value == 0) {
                       return 'Please provide a rating';
-                    if (value < 3)
+                    }
+                    if (value < 3) {
                       return 'Must be at least a 3-star rating to join';
+                    }
                     return null;
                   },
                   onSaved: (value) => _rating = value ?? 0,
