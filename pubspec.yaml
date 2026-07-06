@@ -1,0 +1,22 @@
+name: form_field_adapter
+description: "An interactive, focus-aware FormField wrapper that adds delightful state-based decorations, shake animations, and haptic feedback to any custom widget."
+version: 1.0.0
+homepage: https://github.com/hbsgujjar111/form_field_adapter
+repository: https://github.com/hbsgujjar111/form_field_adapter
+issue_tracker: https://github.com/hbsgujjar111/form_field_adapter/issues
+
+environment:
+  sdk: ^3.11.5
+  flutter: ">=1.17.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+
