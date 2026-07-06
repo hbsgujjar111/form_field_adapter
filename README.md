@@ -2,12 +2,14 @@
 
 [![pub version](https://img.shields.io/pub/v/form_field_adapter.svg)](https://pub.dev/packages/form_field_adapter)
 [![likes](https://img.shields.io/pub/likes/form_field_adapter.svg)](https://pub.dev/packages/form_field_adapter)
-[![license](https://img.shields.io/pub/lic/form_field_adapter.svg)](https://pub.dev/packages/form_field_adapter)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/hbsgujjar111/form_field_adapter/blob/master/LICENSE)
+
+![AnimatedStackPlus Demo Mobile](example/mobile-example.gif)
 
 An interactive, focus-aware `FormField` wrapper designed for Flutter.
 
 `FormFieldAdapter` simplifies turning any custom input widget (such as rating selectors,
-multi-select tag chips, map pin pickers, or image uploads) into a fully integrated form field with
+multi-select tag chips, map pin pickers, or image uploaders) into a fully integrated form field with
 validation, animated visual feedback, and zero boilerplate.
 
 ---
@@ -23,6 +25,8 @@ validation, animated visual feedback, and zero boilerplate.
   active/idle styling changes.
 * **Flexible Error Placement**: Choose whether standard error messages should appear above the
   field, below the field, or be hidden entirely (to display custom alert layouts instead).
+* **Flexible Layout Alignment**: Align the entire wrapper and its error text to the `start`,
+  `center`, or `end` to support centered widgets like profile avatars and rating bars.
 * **Automatic Theme Integration**: Safely falls back to your app's existing `ThemeData` properties (
   including error color, error text typography, and standard input border behaviors) if custom
   values aren't passed.
@@ -151,22 +155,24 @@ Widget buildCustomAdapter(FocusNode myFocusNode) {
 
 ## ⚙️ Properties
 
-| Property                 | Type                                     | Default                          | Description                                                                       |
-|:-------------------------|:-----------------------------------------|:---------------------------------|:----------------------------------------------------------------------------------|
-| `builder`                | `Widget Function(FormFieldState)`        | *Required*                       | Renders your custom input widget.                                                 |
-| `focusNode`              | `FocusNode?`                             | `null`                           | Optional focus node to track the active/idle focus changes of your custom widget. |
-| `normalDecoration`       | `Decoration?`                            | `null`                           | Style applied when the field is enabled, valid, and not focused.                  |
-| `focusedDecoration`      | `Decoration?`                            | `null`                           | Style applied when the field is enabled, valid, and focused.                      |
-| `errorDecoration`        | `Decoration?`                            | `null`                           | Style applied when the field has a validation error and is not focused.           |
-| `focusedErrorDecoration` | `Decoration?`                            | `null`                           | Style applied when the field has a validation error and is focused.               |
-| `decorationPlacement`    | `DecorationPlacement`                    | `DecorationPlacement.background` | Renders decoration behind (`background`) or as a stack overlay (`foreground`).    |
-| `enableShake`            | `bool`                                   | `true`                           | Triggers a horizontal shake animation on validation error.                        |
-| `enableHaptics`          | `bool`                                   | `true`                           | Triggers light haptic feedback on devices on validation error.                    |
-| `animationDuration`      | `Duration`                               | `200ms`                          | Transition duration between the decoration states.                                |
-| `errorPosition`          | `ErrorPosition`                          | `ErrorPosition.bottom`           | Location of the error message (`top`, `bottom`, or `none`).                       |
-| `errorTextStyle`         | `TextStyle?`                             | `null`                           | Typography for the validation error message.                                      |
-| `errorPadding`           | `EdgeInsetsGeometry?`                    | `null`                           | Custom margins surrounding the validation error message.                          |
-| `errorBuilder`           | `Widget Function(BuildContext, String)?` | `null`                           | Completely custom render callback for the error layout.                           |
+| Property                 | Type                                     | Default                          | Description                                                                           |
+|:-------------------------|:-----------------------------------------|:---------------------------------|:--------------------------------------------------------------------------------------|
+| `builder`                | `Widget Function(FormFieldState)`        | *Required*                       | Renders your custom input widget.                                                     |
+| `focusNode`              | `FocusNode?`                             | `null`                           | Optional focus node to track the active/idle focus changes of your custom widget.     |
+| `normalDecoration`       | `Decoration?`                            | `null`                           | Style applied when the field is enabled, valid, and not focused.                      |
+| `focusedDecoration`      | `Decoration?`                            | `null`                           | Style applied when the field is enabled, valid, and focused.                          |
+| `errorDecoration`        | `Decoration?`                            | `null`                           | Style applied when the field has a validation error and is not focused.               |
+| `focusedErrorDecoration` | `Decoration?`                            | `null`                           | Style applied when the field has a validation error and is focused.                   |
+| `decorationPlacement`    | `DecorationPlacement`                    | `DecorationPlacement.background` | Renders decoration behind (`background`) or as a stack overlay (`foreground`).        |
+| `enableShake`            | `bool`                                   | `true`                           | Triggers a horizontal shake animation on validation error.                            |
+| `enableHaptics`          | `bool`                                   | `true`                           | Triggers light haptic feedback on devices on validation error.                        |
+| `animationDuration`      | `Duration`                               | `200ms`                          | Transition duration between the decoration states.                                    |
+| `crossAxisAlignment`     | `CrossAxisAlignment`                     | `CrossAxisAlignment.start`       | Aligns the outer layout container (`start`, `center`, or `end`).                      |
+| `errorTextAlign`         | `TextAlign?`                             | `null`                           | Custom error text alignment. Automatically matches `crossAxisAlignment` if left null. |
+| `errorPosition`          | `ErrorPosition`                          | `ErrorPosition.bottom`           | Location of the error message (`top`, `bottom`, or `none`).                           |
+| `errorTextStyle`         | `TextStyle?`                             | `null`                           | Typography for the validation error message.                                          |
+| `errorPadding`           | `EdgeInsetsGeometry?`                    | `null`                           | Custom margins surrounding the validation error message.                              |
+| `errorBuilder`           | `Widget Function(BuildContext, String)?` | `null`                           | Completely custom render callback for the error layout.                               |
 
 ---
 
