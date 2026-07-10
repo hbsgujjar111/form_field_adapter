@@ -4,12 +4,12 @@
 [![likes](https://img.shields.io/pub/likes/form_field_adapter.svg)](https://pub.dev/packages/form_field_adapter)
 [![license](https://img.shields.io/badge/license-MIT-blue.svg)](https://github.com/hbsgujjar111/form_field_adapter/blob/master/LICENSE)
 
-![AnimatedStackPlus Demo Mobile](example/mobile-example.gif)
+![FormFieldAdapter Demo Mobile](example/mobile-example.gif)
 
 An interactive, focus-aware `FormField` wrapper designed for Flutter.
 
 `FormFieldAdapter` simplifies turning any custom input widget (such as rating selectors,
-multi-select tag chips, map pin pickers, or image uploaders) into a fully integrated form field with
+multi-select tag chips, map pin pickers, or image uploads) into a fully integrated form field with
 validation, animated visual feedback, and zero boilerplate.
 
 ---
