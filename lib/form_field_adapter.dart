@@ -3,6 +3,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+/// Constant width used by the default decorations in every state, so that
+/// focusing the field or showing an error never changes its layout size.
+const double _kDefaultBorderWidth = 1.5;
+
 /// Defines where the state-based [Decoration] is drawn relative to the child widget.
 enum DecorationPlacement {
   /// Wraps the child widget inside the decorated container.
@@ -25,7 +29,46 @@ enum ErrorPosition {
 }
 
 /// A highly interactive, focus-aware custom [FormField] wrapper designed for Flutter.
+///
+/// Wrap any custom input widget returned from [builder] to give it validation,
+/// state-based decorations, a shake animation and haptic feedback:
+///
+/// ```dart
+/// FormFieldAdapter<int>(
+///   focusNode: node,
+///   validator: (value) => (value ?? 0) < 3 ? 'Pick at least 3' : null,
+///   builder: (state) => Focus(
+///     focusNode: node,
+///     child: MyRatingBar(onChanged: state.didChange),
+///   ),
+/// )
+/// ```
+///
+/// **Focus tracking.** The adapter only listens to `focusNode`; it does not
+/// attach it. Pass the same node to a [Focus] widget (or a focusable field)
+/// inside `builder`, otherwise the focused decorations are never used.
+///
+/// **Decorations.** The active decoration is resolved as follows:
+/// focused with error: `focusedErrorDecoration`, then `errorDecoration`;
+/// error: `errorDecoration`; focused: `focusedDecoration`, then
+/// `normalDecoration`; otherwise `normalDecoration`. Any state without a
+/// decoration falls back to a themed bottom border of constant width. Keep the
+/// border widths of your own decorations equal across states, because a
+/// [Border] contributes to layout and different widths shift the content.
+///
+/// **Validation.** `autoValidateMode` differs from [FormField.autovalidateMode]
+/// in spelling and default: it defaults to [AutovalidateMode.onUserInteraction]
+/// (the framework default is [AutovalidateMode.disabled]).
+///
+/// **Feedback.** The shake and the haptic fire when the field changes from
+/// valid to invalid. The shake is skipped when [MediaQuery.disableAnimationsOf]
+/// is true. The error text is announced to screen readers as a live region.
+///
+/// **Layout.** `crossAxisAlignment` aligns the decorated input and the error
+/// text. The default error padding is directional, so it follows the ambient
+/// [TextDirection].
 class FormFieldAdapter<T> extends FormField<T> {
+  /// Creates a form field that wraps the widget returned by [builder].
   FormFieldAdapter({
     super.key,
     super.initialValue,
@@ -65,6 +108,8 @@ class FormFieldAdapter<T> extends FormField<T> {
          builder: (state) {
            final context = state.context;
            final theme = Theme.of(context);
+           final disableAnimations =
+               MediaQuery.maybeDisableAnimationsOf(context) ?? false;
 
            // Automatic Theme Copying for Error Text Styling
            final resolvedErrorColor = theme.colorScheme.error;
@@ -83,7 +128,7 @@ class FormFieldAdapter<T> extends FormField<T> {
                  color: focused
                      ? theme.colorScheme.primary
                      : theme.colorScheme.onSurface.withValues(alpha: .38),
-                 width: focused ? 2.0 : 1.0,
+                 width: _kDefaultBorderWidth,
                ),
              ),
            );
@@ -92,7 +137,7 @@ class FormFieldAdapter<T> extends FormField<T> {
              border: Border(
                bottom: BorderSide(
                  color: resolvedErrorColor,
-                 width: focused ? 2.0 : 1.0,
+                 width: _kDefaultBorderWidth,
                ),
              ),
            );
@@ -111,6 +156,7 @@ class FormFieldAdapter<T> extends FormField<T> {
              hasError: hasError,
              enableShake: enableShake,
              enableHaptics: enableHaptics,
+             disableAnimations: disableAnimations,
              animationDuration: animationDuration,
              normalDecoration: normalDecoration,
              errorDecoration: errorDecoration,
@@ -135,7 +181,8 @@ class FormFieldAdapter<T> extends FormField<T> {
                    state.errorText!,
                    errorBuilder,
                    resolvedErrorTextStyle,
-                   errorPadding ?? const EdgeInsets.only(bottom: 6, left: 4),
+                   errorPadding ??
+                       const EdgeInsetsDirectional.only(bottom: 6, start: 4),
                    resolvedErrorTextAlign, // <-- Align the text
                  ),
 
@@ -149,7 +196,8 @@ class FormFieldAdapter<T> extends FormField<T> {
                    state.errorText!,
                    errorBuilder,
                    resolvedErrorTextStyle,
-                   errorPadding ?? const EdgeInsets.only(top: 6, left: 4),
+                   errorPadding ??
+                       const EdgeInsetsDirectional.only(top: 6, start: 4),
                    resolvedErrorTextAlign, // <-- Align the text
                  ),
              ],
@@ -165,17 +213,18 @@ class FormFieldAdapter<T> extends FormField<T> {
     EdgeInsetsGeometry padding,
     TextAlign textAlign,
   ) {
-    if (customBuilder != null) {
-      return customBuilder(context, errorText);
-    }
-    return Padding(
-      padding: padding,
-      child: Text(
-        errorText,
-        style: style,
-        textAlign: textAlign, // <-- Apply text alignment
-      ),
-    );
+    final Widget error = customBuilder != null
+        ? customBuilder(context, errorText)
+        : Padding(
+            padding: padding,
+            child: Text(
+              errorText,
+              style: style,
+              textAlign: textAlign, // <-- Apply text alignment
+            ),
+          );
+    // Announce the error to screen readers when it appears.
+    return Semantics(liveRegion: true, container: true, child: error);
   }
 }
 
@@ -185,6 +234,7 @@ class _FormFieldContainer extends StatefulWidget {
   final bool hasError;
   final bool enableShake;
   final bool enableHaptics;
+  final bool disableAnimations;
   final Duration animationDuration;
 
   final Decoration? normalDecoration;
@@ -201,6 +251,7 @@ class _FormFieldContainer extends StatefulWidget {
     required this.hasError,
     required this.enableShake,
     required this.enableHaptics,
+    required this.disableAnimations,
     required this.animationDuration,
     this.normalDecoration,
     this.errorDecoration,
@@ -242,7 +293,7 @@ class _FormFieldContainerState extends State<_FormFieldContainer>
     }
 
     if (widget.hasError && !oldWidget.hasError) {
-      if (widget.enableShake) {
+      if (widget.enableShake && !widget.disableAnimations) {
         _shakeController.forward(from: 0.0);
       }
       if (widget.enableHaptics) {

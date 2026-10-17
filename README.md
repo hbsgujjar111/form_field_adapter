@@ -14,34 +14,37 @@ validation, animated visual feedback, and zero boilerplate.
 
 ---
 
-## 🚀 Features
+## Features
 
 * **State-Based Animated Decorations**: Smoothly morphs between four custom `Decoration` states (
   *Normal*, *Focused*, *Error*, and *Focused Error*).
 * **Shake Animation**: Naturally shakes the input container horizontally when validation fails to
-  instantly capture user attention.
+  instantly capture user attention. Skipped automatically when the system's reduce-motion setting
+  is on.
 * **Haptic Feedback**: Triggers a subtle, light device vibration whenever an error is first caught.
-* **Focus Node Integration**: Automatically listens to a standard Flutter `FocusNode` to trigger
-  active/idle styling changes.
+* **Focus Node Integration**: Listens to a standard Flutter `FocusNode` to trigger active/idle
+  styling changes. You attach the same node to a `Focus` widget inside `builder` (see below).
+* **Accessible Errors**: Error text is announced to screen readers as a live region.
 * **Flexible Error Placement**: Choose whether standard error messages should appear above the
   field, below the field, or be hidden entirely (to display custom alert layouts instead).
 * **Flexible Layout Alignment**: Align the entire wrapper and its error text to the `start`,
   `center`, or `end` to support centered widgets like profile avatars and rating bars.
-* **Automatic Theme Integration**: Safely falls back to your app's existing `ThemeData` properties (
-  including error color, error text typography, and standard input border behaviors) if custom
-  values aren't passed.
+* **Automatic Theme Integration**: Falls back to your app's `ThemeData` (error and primary colors,
+  and `inputDecorationTheme.errorStyle` for the error text) if custom values aren't passed.
+* **Works with a plain `Form`**: No extra form wrapper or dependencies. RTL layouts are supported.
 * **Universal Compatibility**: Works on mobile, tablet, desktop, and web.
 
 ---
 
-## 📦 Installation
+## Installation
 
 Add `form_field_adapter` to your `pubspec.yaml` dependencies:
 
 ```yaml
 dependencies:
-  form_field_adapter: ^1.0.0
+  form_field_adapter: ^1.0.2
 ```
+
 
 And run:
 
@@ -51,7 +54,7 @@ flutter pub get
 
 ---
 
-## 🛠️ Quick Start
+## Quick Start
 
 Wrap any interactive widget inside the `FormFieldAdapter` to connect it with your parent `Form`:
 
@@ -59,60 +62,77 @@ Wrap any interactive widget inside the `FormFieldAdapter` to connect it with you
 import 'package:flutter/material.dart';
 import 'package:form_field_adapter/form_field_adapter.dart';
 
-final _formKey = GlobalKey<FormState>();
-final _myFocusNode = FocusNode();
-int _userRating = 0;
+class RatingForm extends StatefulWidget {
+  const RatingForm({super.key});
 
-Widget build(BuildContext context) {
-  return Form(
-    key: _formKey,
-    child: Column(
-      children: [
-        FormFieldAdapter<int>(
-          initialValue: _userRating,
-          focusNode: _myFocusNode,
-          validator: (value) => (value == null || value < 3) ? 'Must rate at least 3 stars!' : null,
-          onSaved: (value) => _userRating = value ?? 0,
-          builder: (state) {
-            return Focus(
-              focusNode: _myFocusNode,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return IconButton(
-                    icon: Icon(
-                      index < (state.value ?? 0) ? Icons.star : Icons.star_border,
-                      color: Colors.amber,
-                    ),
-                    onPressed: () {
-                      state.didChange(index + 1);
-                      _myFocusNode.requestFocus();
-                    },
-                  );
-                }),
-              ),
-            );
-          },
-        ),
+  @override
+  State<RatingForm> createState() => _RatingFormState();
+}
 
-        ElevatedButton(
-          onPressed: () {
-            if (_formKey.currentState!.validate()) {
-              _formKey.currentState!.save();
-              print("Validation passed! Rating is $_userRating");
-            }
-          },
-          child: const Text('Submit'),
-        ),
-      ],
-    ),
-  );
+class _RatingFormState extends State<RatingForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _focusNode = FocusNode();
+  int _userRating = 0;
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          FormFieldAdapter<int>(
+            initialValue: _userRating,
+            focusNode: _focusNode,
+            validator: (value) =>
+                (value == null || value < 3) ? 'Must rate at least 3 stars!' : null,
+            onSaved: (value) => _userRating = value ?? 0,
+            builder: (state) {
+              // Attach the same focus node here, or the focused styles never apply.
+              return Focus(
+                focusNode: _focusNode,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: List.generate(5, (index) {
+                    return IconButton(
+                      icon: Icon(
+                        index < (state.value ?? 0) ? Icons.star : Icons.star_border,
+                        color: Colors.amber,
+                      ),
+                      onPressed: () {
+                        state.didChange(index + 1);
+                        _focusNode.requestFocus();
+                      },
+                    );
+                  }),
+                ),
+              );
+            },
+          ),
+          ElevatedButton(
+            onPressed: () {
+              if (_formKey.currentState!.validate()) {
+                _formKey.currentState!.save();
+                debugPrint('Validation passed! Rating is $_userRating');
+              }
+            },
+            child: const Text('Submit'),
+          ),
+        ],
+      ),
+    );
+  }
 }
 ```
 
 ---
 
-## 🎨 Advanced Customization
+## Advanced Customization
 
 For full-control designs, wrap your custom widgets inside a builder method to satisfy your design
 requirements:
@@ -153,30 +173,38 @@ Widget buildCustomAdapter(FocusNode myFocusNode) {
 
 ---
 
-## ⚙️ Properties
+## Properties
 
-| Property                 | Type                                     | Default                          | Description                                                                           |
-|:-------------------------|:-----------------------------------------|:---------------------------------|:--------------------------------------------------------------------------------------|
-| `builder`                | `Widget Function(FormFieldState)`        | *Required*                       | Renders your custom input widget.                                                     |
-| `focusNode`              | `FocusNode?`                             | `null`                           | Optional focus node to track the active/idle focus changes of your custom widget.     |
-| `normalDecoration`       | `Decoration?`                            | `null`                           | Style applied when the field is enabled, valid, and not focused.                      |
-| `focusedDecoration`      | `Decoration?`                            | `null`                           | Style applied when the field is enabled, valid, and focused.                          |
-| `errorDecoration`        | `Decoration?`                            | `null`                           | Style applied when the field has a validation error and is not focused.               |
-| `focusedErrorDecoration` | `Decoration?`                            | `null`                           | Style applied when the field has a validation error and is focused.                   |
-| `decorationPlacement`    | `DecorationPlacement`                    | `DecorationPlacement.background` | Renders decoration behind (`background`) or as a stack overlay (`foreground`).        |
-| `enableShake`            | `bool`                                   | `true`                           | Triggers a horizontal shake animation on validation error.                            |
-| `enableHaptics`          | `bool`                                   | `true`                           | Triggers light haptic feedback on devices on validation error.                        |
-| `animationDuration`      | `Duration`                               | `200ms`                          | Transition duration between the decoration states.                                    |
-| `crossAxisAlignment`     | `CrossAxisAlignment`                     | `CrossAxisAlignment.start`       | Aligns the outer layout container (`start`, `center`, or `end`).                      |
-| `errorTextAlign`         | `TextAlign?`                             | `null`                           | Custom error text alignment. Automatically matches `crossAxisAlignment` if left null. |
-| `errorPosition`          | `ErrorPosition`                          | `ErrorPosition.bottom`           | Location of the error message (`top`, `bottom`, or `none`).                           |
-| `errorTextStyle`         | `TextStyle?`                             | `null`                           | Typography for the validation error message.                                          |
-| `errorPadding`           | `EdgeInsetsGeometry?`                    | `null`                           | Custom margins surrounding the validation error message.                              |
-| `errorBuilder`           | `Widget Function(BuildContext, String)?` | `null`                           | Completely custom render callback for the error layout.                               |
+| Property                 | Type                                     | Default                              | Description                                                                                                                              |
+|:-------------------------|:-----------------------------------------|:-------------------------------------|:-----------------------------------------------------------------------------------------------------------------------------------------|
+| `builder`                | `Widget Function(FormFieldState<T>)`     | *Required*                           | Renders your custom input widget.                                                                                                        |
+| `initialValue`           | `T?`                                     | `null`                               | Initial value of the field. Restored by `FormState.reset()`.                                                                             |
+| `validator`              | `String? Function(T?)?`                  | `null`                               | Returns an error message, or `null` when the value is valid.                                                                             |
+| `onSaved`                | `void Function(T?)?`                     | `null`                               | Called by `FormState.save()`.                                                                                                            |
+| `autoValidateMode`       | `AutovalidateMode?`                      | `AutovalidateMode.onUserInteraction` | Spelled differently from Flutter's `autovalidateMode`; the framework default is `disabled`.                                              |
+| `enabled`                | `bool`                                   | `true`                               | Forwarded to `FormField`: when `false`, automatic validation is off, but `FormState.validate()` still validates it. No separate styling. |
+| `focusNode`              | `FocusNode?`                             | `null`                               | Listened to for focus changes. Attach the same node to a `Focus` widget in `builder`.                                                    |
+| `normalDecoration`       | `Decoration?`                            | `null`                               | Style applied when the field is valid and not focused.                                                                                   |
+| `focusedDecoration`      | `Decoration?`                            | `null`                               | Style applied when the field is valid and focused. Falls back to `normalDecoration`.                                                     |
+| `errorDecoration`        | `Decoration?`                            | `null`                               | Style applied when the field has a validation error and is not focused.                                                                  |
+| `focusedErrorDecoration` | `Decoration?`                            | `null`                               | Style applied when the field has an error and is focused. Falls back to `errorDecoration`.                                               |
+| `decorationPlacement`    | `DecorationPlacement`                    | `DecorationPlacement.background`     | Renders decoration behind (`background`) or as a stack overlay (`foreground`).                                                           |
+| `enableShake`            | `bool`                                   | `true`                               | Triggers a horizontal shake on validation error. Skipped when reduce-motion is on.                                                       |
+| `enableHaptics`          | `bool`                                   | `true`                               | Triggers light haptic feedback on devices on validation error.                                                                           |
+| `animationDuration`      | `Duration`                               | `200ms`                              | Transition duration between the decoration states.                                                                                       |
+| `crossAxisAlignment`     | `CrossAxisAlignment`                     | `CrossAxisAlignment.start`           | Aligns the outer layout container (`start`, `center`, or `end`).                                                                         |
+| `errorTextAlign`         | `TextAlign?`                             | `null`                               | Custom error text alignment. Automatically matches `crossAxisAlignment` if left null.                                                    |
+| `errorPosition`          | `ErrorPosition`                          | `ErrorPosition.bottom`               | Location of the error message (`top`, `bottom`, or `none`).                                                                              |
+| `errorTextStyle`         | `TextStyle?`                             | `null`                               | Typography for the validation error message.                                                                                             |
+| `errorPadding`           | `EdgeInsetsGeometry?`                    | `null`                               | Custom margins around the error message. Default: 6 px above/below and 4 px at the start.                                                |
+| `errorBuilder`           | `Widget Function(BuildContext, String)?` | `null`                               | Completely custom render callback for the error layout.                                                                                  |
+
+> **Tip:** keep the border widths of your custom decorations equal across states. A `Border` adds to the
+> field's size, so different widths make the layout jump when focus or error state changes.
 
 ---
 
-## 💻 Platforms Supported
+## Platforms Supported
 
 * iOS
 * Android
@@ -187,13 +215,13 @@ Widget buildCustomAdapter(FocusNode myFocusNode) {
 
 ---
 
-## 🤝 Contributions Welcome
+## Contributions Welcome
 
 Found a bug or want to improve this widget? Open an issue or pull request on GitHub:
 **[github.com/hbsgujjar111/form_field_adapter](https://github.com/hbsgujjar111/form_field_adapter)**
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the MIT License - see the LICENSE file for details.

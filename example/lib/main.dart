@@ -129,7 +129,7 @@ class _FormDemoPageState extends State<FormDemoPage> {
                     shape: BoxShape.circle,
                     border: Border.all(
                       color: theme.colorScheme.error,
-                      width: 4,
+                      width: 3,
                     ),
                   ),
                   builder: (state) {
