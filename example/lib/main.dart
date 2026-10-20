@@ -95,6 +95,7 @@ class _FormDemoPageState extends State<FormDemoPage> {
                 // ==========================================
                 FormFieldAdapter<String?>(
                   initialValue: _avatarUrl,
+                  ensureVisibleOnError: true,
                   focusNode: _avatarFocusNode,
                   validator: (value) =>
                       value == null ? 'Profile picture is required' : null,
@@ -170,6 +171,7 @@ class _FormDemoPageState extends State<FormDemoPage> {
                 const SizedBox(height: 8),
                 FormFieldAdapter<int>(
                   initialValue: _rating,
+                  ensureVisibleOnError: true,
                   focusNode: _ratingFocusNode,
                   validator: (value) {
                     if (value == null || value == 0) {
@@ -225,6 +227,7 @@ class _FormDemoPageState extends State<FormDemoPage> {
                 const SizedBox(height: 8),
                 FormFieldAdapter<List<String>>(
                   initialValue: _selectedSkills,
+                  ensureVisibleOnError: true,
                   focusNode: _skillsFocusNode,
                   validator: (value) {
                     if (value == null || value.length < 2) {
@@ -301,6 +304,7 @@ class _FormDemoPageState extends State<FormDemoPage> {
                 // ==========================================
                 FormFieldAdapter<bool>(
                   initialValue: _acceptTerms,
+                  ensureVisibleOnError: true,
                   validator: (value) => value == true
                       ? null
                       : 'You must accept the terms to proceed',

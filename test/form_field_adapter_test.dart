@@ -8,6 +8,7 @@ const _normalD = BoxDecoration(color: Color(0xFF000001));
 const _focusedD = BoxDecoration(color: Color(0xFF000002));
 const _errorD = BoxDecoration(color: Color(0xFF000003));
 const _focusedErrorD = BoxDecoration(color: Color(0xFF000004));
+const _disabledD = BoxDecoration(color: Color(0xFF000005));
 
 const _inputKey = Key('input');
 const _inputBox = SizedBox(key: _inputKey, width: 100, height: 40);
@@ -60,6 +61,47 @@ Future<GlobalKey<FormState>> _pump(
   await tester.pumpWidget(MaterialApp(home: Scaffold(body: body)));
   return key;
 }
+
+/// Fields separated (and followed) by 1500 px spacers inside a scroll view.
+Future<GlobalKey<FormState>> _pumpScrolling(
+  WidgetTester tester,
+  List<Widget> fields, {
+  bool disableAnimations = false,
+}) async {
+  _recordHaptics(tester);
+  final key = GlobalKey<FormState>();
+  await tester.pumpWidget(
+    MaterialApp(
+      builder: (context, child) => MediaQuery(
+        data: MediaQuery.of(
+          context,
+        ).copyWith(disableAnimations: disableAnimations),
+        child: child!,
+      ),
+      home: Scaffold(
+        body: SingleChildScrollView(
+          child: Form(
+            key: key,
+            child: Column(
+              children: [
+                for (final f in fields) ...[const SizedBox(height: 1500), f],
+                const SizedBox(height: 1500),
+              ],
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+  return key;
+}
+
+FormFieldAdapter<int> _scrollField(String id, {bool reveal = true}) =>
+    FormFieldAdapter<int>(
+      validator: _fail,
+      ensureVisibleOnError: reveal,
+      builder: (s) => SizedBox(key: Key(id), width: 100, height: 40),
+    );
 
 Future<void> _validate(WidgetTester tester, GlobalKey<FormState> key) async {
   key.currentState!.validate();
@@ -555,13 +597,13 @@ void main() {
       expect(find.text('bad'), findsOneWidget);
     });
 
-    testWidgets('autoValidateMode.disabled suppresses interaction validation', (
+    testWidgets('autovalidateMode.disabled suppresses interaction validation', (
       tester,
     ) async {
       await _pump(
         tester,
         FormFieldAdapter<int>(
-          autoValidateMode: AutovalidateMode.disabled,
+          autovalidateMode: AutovalidateMode.disabled,
           validator: (v) => v == 1 ? 'bad' : null,
           builder: _box,
         ),
@@ -579,7 +621,7 @@ void main() {
         tester,
         FormFieldAdapter<int>(
           initialValue: 4,
-          autoValidateMode: AutovalidateMode.disabled,
+          autovalidateMode: AutovalidateMode.disabled,
           onSaved: (v) => saved = v,
           builder: _box,
         ),
@@ -704,8 +746,7 @@ void main() {
       expect(_haptics, hasLength(1));
     });
 
-    // Characterization of CURRENT behavior (audit item B1). Update when fixed.
-    testWidgets('B1: repeated failed validation does not repeat feedback', (
+    testWidgets('B1: every failed explicit validation repeats the feedback', (
       tester,
     ) async {
       final key = await _pump(
@@ -714,6 +755,24 @@ void main() {
       );
       await _validate(tester, key);
       await _validate(tester, key);
+      expect(_haptics, hasLength(2));
+    });
+
+    testWidgets('typing while an error is showing does not repeat feedback', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          validator: (v) => (v ?? 0) < 3 ? 'err' : null,
+          builder: _box,
+        ),
+      );
+      final state = tester.state<FormFieldState<int>>(_adapter);
+      state.didChange(1);
+      await tester.pump();
+      state.didChange(2);
+      await tester.pump();
       expect(_haptics, hasLength(1));
     });
 
@@ -756,5 +815,325 @@ void main() {
       },
       variant: TargetPlatformVariant.all(),
     );
+  });
+  group('disabled fields', () {
+    testWidgets('no feedback when disabled, but the error is still shown', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        FormFieldAdapter<int>(enabled: false, validator: _fail, builder: _box),
+      );
+      tester.state<FormFieldState<int>>(_adapter).validate();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      expect(find.text('err'), findsOneWidget);
+      expect(_haptics, isEmpty);
+      expect(_shakeDx(tester), closeTo(0, 1e-9));
+    });
+
+    testWidgets('disabledDecoration wins over every other state', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          enabled: false,
+          validator: _fail,
+          normalDecoration: _normalD,
+          errorDecoration: _errorD,
+          disabledDecoration: _disabledD,
+          builder: _box,
+        ),
+      );
+      expect(_deco(tester), _disabledD);
+      tester.state<FormFieldState<int>>(_adapter).validate();
+      await tester.pump();
+      expect(_deco(tester), _disabledD);
+    });
+
+    testWidgets('disabledDecoration is ignored while enabled', (tester) async {
+      await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          normalDecoration: _normalD,
+          disabledDecoration: _disabledD,
+          builder: _box,
+        ),
+      );
+      expect(_deco(tester), _normalD);
+    });
+  });
+
+  group('derived error decoration', () {
+    testWidgets(
+      'recolors the border of normalDecoration, keeping shape/width',
+      (tester) async {
+        final key = await _pump(
+          tester,
+          FormFieldAdapter<int>(
+            validator: _fail,
+            normalDecoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: const Color(0xFF999999), width: 3),
+            ),
+            builder: _box,
+          ),
+        );
+        await _validate(tester, key);
+        final deco = _deco(tester)! as BoxDecoration;
+        expect(deco.borderRadius, BorderRadius.circular(12));
+        expect(deco.border, Border.all(color: _scheme(tester).error, width: 3));
+      },
+    );
+
+    testWidgets('focused error derives from focusedDecoration', (tester) async {
+      final node = FocusNode();
+      addTearDown(node.dispose);
+      final key = await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          focusNode: node,
+          validator: _fail,
+          normalDecoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF999999), width: 1),
+          ),
+          focusedDecoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFF0000AA), width: 2),
+          ),
+          builder: (s) => Focus(focusNode: node, child: _inputBox),
+        ),
+      );
+      node.requestFocus();
+      await tester.pumpAndSettle();
+      await _validate(tester, key);
+      final deco = _deco(tester)! as BoxDecoration;
+      expect(deco.border, Border.all(color: _scheme(tester).error, width: 2));
+    });
+
+    testWidgets('BorderDirectional is recolored, empty sides stay empty', (
+      tester,
+    ) async {
+      final key = await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          validator: _fail,
+          normalDecoration: const BoxDecoration(
+            border: BorderDirectional(
+              start: BorderSide(color: Color(0xFF999999), width: 4),
+              bottom: BorderSide(color: Color(0xFF999999)),
+            ),
+          ),
+          builder: _box,
+        ),
+      );
+      await _validate(tester, key);
+      final error = _scheme(tester).error;
+      expect(
+        (_deco(tester)! as BoxDecoration).border,
+        BorderDirectional(
+          start: BorderSide(color: error, width: 4),
+          bottom: BorderSide(color: error),
+        ),
+      );
+    });
+
+    testWidgets('a decoration without a border is reused unchanged', (
+      tester,
+    ) async {
+      final key = await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          validator: _fail,
+          normalDecoration: _normalD,
+          builder: _box,
+        ),
+      );
+      await _validate(tester, key);
+      expect(_deco(tester), _normalD);
+    });
+  });
+
+  group('API additions', () {
+    testWidgets('deprecated autoValidateMode still works; new name wins', (
+      tester,
+    ) async {
+      await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          // ignore: deprecated_member_use_from_same_package
+          autoValidateMode: AutovalidateMode.disabled,
+          validator: (v) => v == 1 ? 'bad' : null,
+          builder: _box,
+        ),
+      );
+      tester.state<FormFieldState<int>>(_adapter).didChange(1);
+      await tester.pump();
+      expect(find.text('bad'), findsNothing);
+
+      await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          autovalidateMode: AutovalidateMode.onUserInteraction,
+          // ignore: deprecated_member_use_from_same_package
+          autoValidateMode: AutovalidateMode.disabled,
+          validator: (v) => v == 1 ? 'bad' : null,
+          builder: _box,
+        ),
+      );
+      tester.state<FormFieldState<int>>(_adapter).didChange(1);
+      await tester.pump();
+      expect(find.text('bad'), findsOneWidget);
+    });
+
+    testWidgets('onChanged reports didChange but not reset', (tester) async {
+      final seen = <int?>[];
+      await _pump(
+        tester,
+        FormFieldAdapter<int>(onChanged: seen.add, builder: _box),
+      );
+      final state = tester.state<FormFieldState<int>>(_adapter);
+      state.didChange(3);
+      state.didChange(4);
+      state.reset();
+      await tester.pump();
+      expect(seen, <int?>[3, 4]);
+    });
+
+    testWidgets('forceErrorText and onReset are forwarded', (tester) async {
+      var resets = 0;
+      final key = await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          forceErrorText: 'server says no',
+          onReset: () => resets++,
+          builder: _box,
+        ),
+      );
+      await _validate(tester, key);
+      expect(find.text('server says no'), findsOneWidget);
+      key.currentState!.reset();
+      await tester.pump();
+      expect(resets, 1);
+    });
+
+    testWidgets('shakeOffset scales the shake', (tester) async {
+      final key = await _pump(
+        tester,
+        FormFieldAdapter<int>(validator: _fail, shakeOffset: 20, builder: _box),
+      );
+      await _validate(tester, key);
+      await tester.pump(const Duration(milliseconds: 50));
+      // Default offset 8 gives about 6.9 at this point; 20 gives about 17.
+      expect(_shakeDx(tester).abs(), greaterThan(15));
+    });
+
+    testWidgets('shakeDuration stretches the shake', (tester) async {
+      final key = await _pump(
+        tester,
+        FormFieldAdapter<int>(
+          validator: _fail,
+          shakeDuration: const Duration(seconds: 1),
+          builder: _box,
+        ),
+      );
+      await _validate(tester, key);
+      await tester.pump(const Duration(milliseconds: 400));
+      // With the default 350 ms the shake would already be over.
+      expect(_shakeDx(tester).abs(), greaterThan(1));
+      await tester.pump(const Duration(seconds: 2));
+      expect(_shakeDx(tester), closeTo(0, 1e-9));
+    });
+  });
+
+  group('ensureVisibleOnError', () {
+    testWidgets('off by default: failed validation does not scroll', (
+      tester,
+    ) async {
+      final key = await _pumpScrolling(tester, [
+        _scrollField('first', reveal: false),
+      ]);
+      await _validate(tester, key);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.byKey(const Key('first'))).dy,
+        greaterThan(600),
+      );
+    });
+
+    testWidgets('on: failed validation scrolls the field into view', (
+      tester,
+    ) async {
+      final key = await _pumpScrolling(tester, [_scrollField('first')]);
+      await _validate(tester, key);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.byKey(const Key('first'))).dy,
+        inInclusiveRange(0, 200),
+      );
+    });
+
+    testWidgets('reduce motion: scrolls without an animation', (tester) async {
+      final key = await _pumpScrolling(tester, [
+        _scrollField('first'),
+      ], disableAnimations: true);
+      key.currentState!.validate();
+      await tester.pump(); // rebuild, then the post-frame reveal jumps
+      await tester.pump(); // lay out the new scroll position
+      expect(
+        tester.getTopLeft(find.byKey(const Key('first'))).dy,
+        inInclusiveRange(0, 200),
+      );
+    });
+
+    testWidgets('animations on: scroll is still in progress after one frame', (
+      tester,
+    ) async {
+      final key = await _pumpScrolling(tester, [_scrollField('first')]);
+      key.currentState!.validate();
+      await tester.pump();
+      await tester.pump();
+      expect(
+        tester.getTopLeft(find.byKey(const Key('first'))).dy,
+        greaterThan(600),
+      );
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.byKey(const Key('first'))).dy,
+        inInclusiveRange(0, 200),
+      );
+    });
+
+    testWidgets('several invalid fields: the topmost one is revealed', (
+      tester,
+    ) async {
+      final key = await _pumpScrolling(tester, [
+        _scrollField('first'),
+        _scrollField('second'),
+      ]);
+      await _validate(tester, key);
+      await tester.pumpAndSettle();
+      expect(
+        tester.getTopLeft(find.byKey(const Key('first'))).dy,
+        inInclusiveRange(0, 200),
+      );
+      expect(
+        tester.getTopLeft(find.byKey(const Key('second'))).dy,
+        greaterThan(600),
+      );
+    });
+
+    testWidgets('errors from typing do not scroll', (tester) async {
+      await _pumpScrolling(tester, [_scrollField('first')]);
+      tester
+          .state<FormFieldState<int>>(find.byType(FormFieldAdapter<int>))
+          .didChange(1);
+      await tester.pumpAndSettle();
+      expect(find.text('err'), findsOneWidget);
+      expect(
+        tester.getTopLeft(find.byKey(const Key('first'))).dy,
+        greaterThan(600),
+      );
+    });
   });
 }
