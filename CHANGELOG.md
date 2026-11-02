@@ -23,6 +23,7 @@
 ### Example
 
 * The demo form uses `ensureVisibleOnError`.
+* Live web demo published to GitHub Pages (built by `.github/workflows/deploy_demo.yml`), linked from the README. The web page title and manifest now name the demo.
 
 ### Tests
 

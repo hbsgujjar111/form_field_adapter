@@ -6,6 +6,9 @@
 
 ![FormFieldAdapter Demo Mobile](example/mobile-example.gif)
 
+**[Try the live demo](https://hbsgujjar111.github.io/form_field_adapter/)** in your browser
+(haptic feedback needs a real device).
+
 An interactive, focus-aware `FormField` wrapper designed for Flutter.
 
 `FormFieldAdapter` simplifies turning any custom input widget (such as rating selectors,
@@ -96,7 +99,7 @@ class _RatingFormState extends State<RatingForm> {
             initialValue: _userRating,
             focusNode: _focusNode,
             validator: (value) =>
-            (value == null || value < 3) ? 'Must rate at least 3 stars!' : null,
+                (value == null || value < 3) ? 'Must rate at least 3 stars!' : null,
             onSaved: (value) => _userRating = value ?? 0,
             builder: (state) {
               // Attach the same focus node here, or the focused styles never apply.
